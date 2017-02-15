@@ -6,73 +6,97 @@ import corpora._
 import textreflow.data._
 import TypeTags._
 
-object TextPageSamples {
-  val samples = List(
-    """|            The Title of the Paper
-       |^{a}Faculty of Engineering, Yamagata University, Yonezawa 992-8510, Japan
-       |""".stripMargin,
-
-    """|   EXPERIMENTAL
-       |1. Sample Preparation and Characterization
-       |
-       |   The starting material of NaBiO_{3} ? nH2O (Nacalai Tesque
-       |Inc.) was placed in a Teflon lined autoclave (70 ml) with
-       |LiOH and H2O (30 ml) and was heated at 120–2008C
-       |for 4 days.
-       |
-       |""".stripMargin
-  )
-
-}
-
 object Examples extends App {
   override def main(args: Array[String]) = {
 
     val corpus = new SampleTextCorpus()
 
-    //
+    // Stable IDs are arbitrary strings, but must be unique within a given corpus,
+    //   often just a filename
     val stableId = DocumentID("some-id#23")
 
+    // Load a 2-page document sample w/give id
     corpus.loadSampleDoc(stableId, 2)
 
-    reportDocuments(corpus.docStore)
+    reportDocuments(stableId, corpus.docStore)
   }
 
-  def reportDocuments(docStore: DocumentCorpus): Unit = {
+  def reportDocuments(stableId: String@@DocumentID, docStore: DocumentCorpus): Unit = {
     for {
-      stableId <- docStore.getDocuments()
       docId <- docStore.getDocument(stableId)
     } {
+      println(s"Document ${docId} (${stableId})")
 
-      val pagesBox = for {
+      for {
         pageId <- docStore.getPages(docId)
       } {
-        val pageGeometry = docStore.getPageGeometry(pageId)
         println(s"Page ${pageId}")
 
+        // Every page has a geometry bounding box
+        val pageGeometry = docStore.getPageGeometry(pageId)
         println("PageGeometry")
         println(pageGeometry)
 
+        // A TargetRegion is a bounding box for a specific document page:
         val allTargetRegions = docStore.getTargetRegions(pageId)
 
         println(s"TargetRegion count: ${allTargetRegions.length} ")
+        val regionId = docStore.getTargetRegions(pageId).head
+        val oneTargetRegion = docStore.getTargetRegion(regionId)
+
+        println(s"First TargetRegion: ${oneTargetRegion}")
 
       }
 
+      println()
       println("All Document Zones")
 
+      // A Zone is an ordered list of TargetRegions, with one or more labels
+      // It may also have text associated with it, in the form of a TextReflow.
+      //   (more on TextReflows later)
+      //
+      // Documents are initially segmented into zones labeled VisualLine,
+      //   corresponding to the lines on a page
       for {
         zoneId <- docStore.getZonesForDocument(docId)
         textReflow <- docStore.getTextReflowForZone(zoneId)
       } {
-        println("Zone:")
-        println(docStore.getZone(zoneId))
-        println("Text:")
-        println(textReflow.toText)
+        val zone = docStore.getZone(zoneId)
+        val ls = zone.labels
+        val zoneTargetRegions = zone.regions
+        println("  " + zone)
+        println("  " + textReflow.toText)
+
+        // TextReflow is important: here's what it can do:
+        // Act much like a normal string:
+        val len = textReflow.length
+        // Create a normal String
+        val text = textReflow.toText()
+
+        // textReflow.slice(begin: Int,  c)
+        // Compute the bounding box within which the text appears
+        textReflow.targetRegion()
+        // Compute all char-level bounding boxes for the text
+        textReflow.targetRegions()
+
+        // Examine the individual chars w/bounding boxes
+        textReflow.charAtoms().take(3).foreach { charAtom =>
+          println(s"${charAtom.char}: ${charAtom.targetRegion}")
+        }
+
+        // Sliding trigram example:
+        for {
+          i <- 0 until textReflow.length
+          slice <- textReflow.slice(i, i+3)
+        }  {
+          println(
+            s"""Tri: ${slice.toText()} ${slice.targetRegion().bbox}"""
+          )
+        }
+
       }
 
 
-      println(s"Document ${docId} (${stableId})")
 
     }
   }

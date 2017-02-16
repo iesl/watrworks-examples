@@ -70,10 +70,8 @@ object Examples extends App {
         // TextReflow is important: here's what it can do:
         // Act much like a normal string:
         val len = textReflow.length
-        // Create a normal String
         val text = textReflow.toText()
 
-        // textReflow.slice(begin: Int,  c)
         // Compute the bounding box within which the text appears
         textReflow.targetRegion()
         // Compute all char-level bounding boxes for the text
@@ -84,6 +82,7 @@ object Examples extends App {
           println(s"${charAtom.char}: ${charAtom.targetRegion}")
         }
 
+        // textReflow.slice(begin: Int, end: Int)
         // Sliding trigram example:
         for {
           i <- 0 until textReflow.length

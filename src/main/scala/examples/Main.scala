@@ -5,6 +5,10 @@ import corpora._
 // import textboxing.{TextBoxing => TB}, TB._
 import textreflow.data._
 import TypeTags._
+import geometry._
+import GeometryImplicits._
+import PageComponentImplicits._
+import utils.{CompassDirection => Compass}
 
 object Examples extends App {
   override def main(args: Array[String]) = {
@@ -95,6 +99,46 @@ object Examples extends App {
 
       }
 
+      val allTextReflows = for {
+        zoneId <- docStore.getZonesForDocument(docId)
+        textReflow <- docStore.getTextReflowForZone(zoneId)
+      } yield textReflow
+
+      //
+      val reflow1 = allTextReflows.head
+      val reflow2 = allTextReflows.drop(1).head
+
+      // Here are some useful operations on TargetRegions:
+      // Union: (the regions must be on the same page for union to work, otherwise it's a runtime error)
+      val reflow12Region = reflow1.targetRegion.union(reflow2.targetRegion)
+      // Intersects (Boolean)
+      reflow1.targetRegion.intersects(reflow2.targetRegion) == false
+      reflow12Region.intersects(reflow1.targetRegion()) == true
+
+      // And here are operations on Bounding boxes of type LTBounds (left, top, width, height)
+
+      // Bounds of two TextReflows:
+      val reflow1Bounds:LTBounds = reflow1.targetRegion.bbox
+      val reflow2Bounds:LTBounds = reflow2.targetRegion.bbox
+
+      val area: Double = reflow1Bounds.area
+      // Find top/bottom/left/etc 
+      val top: Double = reflow1Bounds.top // or .left  .right  .bottom
+
+      // Move it..
+      reflow1Bounds.translate(x=3.0, y=3.4)
+
+      // Find the center point
+      val p0: Point = reflow1Bounds.toCenterPoint
+      // p0.x;  p0.y
+
+
+      // Find the corner points
+      val point1 = reflow1Bounds.toPoint(Compass.NE) // or .NW, .SE, .SW
+      val point2 = reflow2Bounds.toPoint(Compass.NE) // or .NW, .SE, .SW
+
+      // find distances
+      val p12Dist: Double = point1.dist(point2)
 
 
     }

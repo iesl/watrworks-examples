@@ -9,6 +9,7 @@ import geometry._
 import GeometryImplicits._
 import PageComponentImplicits._
 import utils.{CompassDirection => Compass}
+import utils.EnrichNumerics._
 
 object Examples extends App {
   override def main(args: Array[String]) = {
@@ -41,7 +42,7 @@ object Examples extends App {
         println("PageGeometry")
         println(pageGeometry)
 
-        // A TargetRegion is a bounding box for a specific document page:
+        // A TargetRegion is a bounding box located on a specific page:
         val allTargetRegions = docStore.getTargetRegions(pageId)
 
         println(s"TargetRegion count: ${allTargetRegions.length} ")
@@ -61,6 +62,8 @@ object Examples extends App {
       //
       // Documents are initially segmented into zones labeled VisualLine,
       //   corresponding to the lines on a page
+      // VisualLine-zones all have TextReflows
+
       for {
         zoneId <- docStore.getZonesForDocument(docId)
         textReflow <- docStore.getTextReflowForZone(zoneId)
@@ -99,19 +102,23 @@ object Examples extends App {
 
       }
 
+
+      // Demonstrate operations involving bounding boxes on a page:
       val allTextReflows = for {
         zoneId <- docStore.getZonesForDocument(docId)
         textReflow <- docStore.getTextReflowForZone(zoneId)
       } yield textReflow
 
-      //
+      // Two arbitrary TextReflows:
       val reflow1 = allTextReflows.head
       val reflow2 = allTextReflows.drop(1).head
 
       // Here are some useful operations on TargetRegions:
+
       // Union: (the regions must be on the same page for union to work, otherwise it's a runtime error)
-      val reflow12Region = reflow1.targetRegion.union(reflow2.targetRegion)
-      // Intersects (Boolean)
+      val reflow12Region: TargetRegion = reflow1.targetRegion.union(reflow2.targetRegion)
+
+      // Intersection (Boolean)
       reflow1.targetRegion.intersects(reflow2.targetRegion) == false
       reflow12Region.intersects(reflow1.targetRegion()) == true
 
@@ -122,24 +129,33 @@ object Examples extends App {
       val reflow2Bounds:LTBounds = reflow2.targetRegion.bbox
 
       val area: Double = reflow1Bounds.area
-      // Find top/bottom/left/etc 
+
+      // Find top/bottom/left/etc
       val top: Double = reflow1Bounds.top // or .left  .right  .bottom
 
       // Move it..
-      reflow1Bounds.translate(x=3.0, y=3.4)
+      val moved: LTBounds = reflow1Bounds.translate(x=3.0, y=3.4)
 
       // Find the center point
       val p0: Point = reflow1Bounds.toCenterPoint
-      // p0.x;  p0.y
+      val p1: Point = reflow2Bounds.toCenterPoint
+      // x/y access
+      val (x, y) = (p0.x,  p0.y)
 
-
-      // Find the corner points
+      // Find the corner points: upper-left=NW, upper-right=NE, etc
       val point1 = reflow1Bounds.toPoint(Compass.NE) // or .NW, .SE, .SW
       val point2 = reflow2Bounds.toPoint(Compass.NE) // or .NW, .SE, .SW
 
-      // find distances
+      // find distance between upper-right (NE) points
       val p12Dist: Double = point1.dist(point2)
 
+
+      // Here are a few helper functions for comparing x/y/left/right values:
+      // Create a (min, max) range of type Double
+      val p0Range:RangeDouble = p0.x.plusOrMinus(4.percent)
+
+      // Determine if another x-value is within that range
+      p1.x.withinRange(p0Range) == true
 
     }
   }
